@@ -12,6 +12,7 @@ using FlaUI.UIA2;
 using FlaUI.UIA3;
 using FlaUInspect.Core;
 using Microsoft.Win32;
+using System.Configuration;
 
 namespace FlaUInspect.ViewModels
 {
@@ -28,6 +29,15 @@ namespace FlaUInspect.ViewModels
             Elements = new ObservableCollection<ElementViewModel>();
             StartNewInstanceCommand = new RelayCommand(o =>
             {
+                var info = new ProcessStartInfo(Assembly.GetExecutingAssembly().Location);
+                Process.Start(info);
+            });
+            StartNewInstanceWithVersionSelectionCommand = new RelayCommand(o =>
+            {
+                // Reset UIA version in configuration
+                Configuration config = ConfigurationManager.OpenExeConfiguration(System.Windows.Forms.Application.ExecutablePath);
+                config.AppSettings.Settings.Remove("version");
+                config.Save(ConfigurationSaveMode.Minimal);
                 var info = new ProcessStartInfo(Assembly.GetExecutingAssembly().Location);
                 Process.Start(info);
             });
@@ -65,8 +75,19 @@ namespace FlaUInspect.ViewModels
             {
                 if (SetProperty(value))
                 {
-                    if (value) { _hoverMode.Start(); }
-                    else { _hoverMode.Stop(); }
+                    Configuration config = ConfigurationManager.OpenExeConfiguration(System.Windows.Forms.Application.ExecutablePath);
+                    config.AppSettings.Settings.Remove("EnableHoverMode");
+                    if (value)
+                    {
+                        config.AppSettings.Settings.Add("EnableHoverMode", "true");
+                        _hoverMode.Start();
+                    }
+                    else
+                    {
+                        config.AppSettings.Settings.Add("EnableHoverMode", "false");
+                        _hoverMode.Stop();
+                    }
+                    config.Save(ConfigurationSaveMode.Minimal);
                 }
             }
         }
@@ -89,8 +110,19 @@ namespace FlaUInspect.ViewModels
             {
                 if (SetProperty(value))
                 {
-                    if (value) { _focusTrackingMode.Start(); }
-                    else { _focusTrackingMode.Stop(); }
+                    Configuration config = ConfigurationManager.OpenExeConfiguration(System.Windows.Forms.Application.ExecutablePath);
+                    config.AppSettings.Settings.Remove("EnableFocusTrackingMode");
+                    if (value)
+                    {
+                        config.AppSettings.Settings.Add("EnableFocusTrackingMode", "true");
+                        _focusTrackingMode.Start();
+                    }
+                    else
+                    {
+                        config.AppSettings.Settings.Add("EnableFocusTrackingMode", "false");
+                        _focusTrackingMode.Stop();
+                    }
+                    config.Save(ConfigurationSaveMode.Minimal);
                 }
             }
         }
@@ -98,7 +130,22 @@ namespace FlaUInspect.ViewModels
         public bool EnableXPath
         {
             get { return GetProperty<bool>(); }
-            set { SetProperty(value); }
+            set
+            {
+                Configuration config = ConfigurationManager.OpenExeConfiguration(System.Windows.Forms.Application.ExecutablePath);
+                config.AppSettings.Settings.Remove("EnableXPath");
+                if (value)
+                {
+                    config.AppSettings.Settings.Add("EnableXPath", "true");
+                }
+                else
+                {
+                    config.AppSettings.Settings.Add("EnableXPath", "false");
+                }
+                config.Save(ConfigurationSaveMode.Minimal);
+
+                SetProperty(value);
+            }
         }
 
         public AutomationType SelectedAutomationType
@@ -110,6 +157,8 @@ namespace FlaUInspect.ViewModels
         public ObservableCollection<ElementViewModel> Elements { get; private set; }
 
         public ICommand StartNewInstanceCommand { get; private set; }
+
+        public ICommand StartNewInstanceWithVersionSelectionCommand { get; private set; }
 
         public ICommand CaptureSelectedItemCommand { get; private set; }
 
@@ -142,6 +191,15 @@ namespace FlaUInspect.ViewModels
             // Initialize hover
             _hoverMode = new HoverMode(_automation, this);
             _hoverMode.ElementHovered += ElementToSelectChanged;
+
+            // Set modes from config file
+            var enableHoverMode = ConfigurationManager.AppSettings["EnableHoverMode"];
+            var enableFocusTrackingMode = ConfigurationManager.AppSettings["EnableFocusTrackingMode"];
+            var enableXPath = ConfigurationManager.AppSettings["EnableXPath"];
+
+            EnableHoverMode = enableHoverMode == "true";
+            EnableFocusTrackingMode = enableFocusTrackingMode == "true";
+            EnableXPath = enableXPath == "true";
             _hoverMode.Start();
             EnableHoverMode = true;
 
